@@ -56,6 +56,50 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     // For more details, see the help for AudioProcessor::prepareToPlay()
     
     currentSampleRate = sampleRate;
+
+    // Create a new rnnoise instance
+    st = rnnoise_create(NULL);
+
+    if (isRecording) {
+        // This will create a file named "processed_audio.wav"
+        outputFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+            .getChildFile("processed_audio.wav");
+
+        if (outputFile.exists()) {
+            outputFile.deleteFile();
+        }
+
+        outputFileStream = std::unique_ptr<juce::FileOutputStream>(outputFile.createOutputStream());
+
+        if (outputFileStream != nullptr)
+        {
+            // Get the WAV audio format.
+            juce::WavAudioFormat wavFormat;
+
+            // Create an AudioFormatWriter.
+            audioWriter.reset(wavFormat.createWriterFor(outputFileStream.get(), // The stream to write to
+                currentSampleRate,              // The sample rate
+                MAX_CHANNELS,
+                24,                      // Bit depth (e.g., 24 bits)
+                {},                      // Metadata
+                0));                     // Flags
+
+            if (audioWriter != nullptr)
+            {
+                // Writer is ready
+                DBG("Audio file writer successfully created for: " + outputFile.getFullPathName());
+            }
+            else
+            {
+                DBG("Error: Could not create audio format writer!");
+                outputFileStream.reset(); // Close the stream if the writer failed
+            }
+        }
+        else
+        {
+            DBG("Error: Could not create output file stream for: " + outputFile.getFullPathName());
+        }
+    }
 }
 
 void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill)
@@ -148,6 +192,12 @@ void MainComponent::releaseResources()
     // restarted due to a setting change.
 
     // For more details, see the help for AudioProcessor::releaseResources()
+ 
+    // Destroy the rnnoise instance
+    rnnoise_destroy(st);
+    // Reset audio writer and release output stream
+    audioWriter.reset();
+    outputFileStream.release();
 }
 
 //==============================================================================
@@ -203,49 +253,8 @@ void MainComponent::resized()
 void MainComponent::startRecording()
 {
     if (!isRecording) {
-        // Create a new rnnoise instance
-        st = rnnoise_create(NULL);
-
-        // This will create a file named "processed_audio.wav"
-        outputFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-            .getChildFile("processed_audio.wav");
-
-        if (outputFile.exists()) {
-            outputFile.deleteFile();
-        }
-
-        outputFileStream = std::unique_ptr<juce::FileOutputStream>(outputFile.createOutputStream());
-
-        if (outputFileStream != nullptr)
-        {
-            // Get the WAV audio format.
-            juce::WavAudioFormat wavFormat;
-
-            // Create an AudioFormatWriter.
-            audioWriter.reset(wavFormat.createWriterFor(outputFileStream.get(), // The stream to write to
-                currentSampleRate,              // The sample rate
-                MAX_CHANNELS,
-                24,                      // Bit depth (e.g., 24 bits)
-                {},                      // Metadata
-                0));                     // Flags
-
-            if (audioWriter != nullptr)
-            {
-                // Writer is ready
-                isRecording = true;
-                recordButton.setButtonText("Stop Recording");
-                DBG("Audio file writer successfully created for: " + outputFile.getFullPathName());
-            }
-            else
-            {
-                DBG("Error: Could not create audio format writer!");
-                outputFileStream.reset(); // Close the stream if the writer failed
-            }
-        }
-        else
-        {
-            DBG("Error: Could not create output file stream for: " + outputFile.getFullPathName());
-        }
+        isRecording = true;
+        recordButton.setButtonText("Stop Recording");
     }
     repaint();
 }
@@ -255,14 +264,6 @@ void MainComponent::stopRecording()
     if (isRecording)
     {
         isRecording = false;
-
-        // Destroy the rnnoise instance
-        rnnoise_destroy(st);
-
-        // Reset audio writer and release output stream
-        audioWriter.reset();
-        outputFileStream.release();
-
         recordButton.setButtonText("Start Recording");
     }
     repaint();
