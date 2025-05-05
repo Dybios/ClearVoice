@@ -34,7 +34,6 @@ private:
 
     std::unique_ptr<juce::FileOutputStream> outputFileStream;
     std::unique_ptr<juce::AudioFormatWriter> audioWriter;
-    juce::File outputFile;
 
     // Recording state
     juce::TextButton recordButton{ "Start Recording" };

@@ -62,8 +62,8 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
 
     if (isRecording) {
         // This will create a file named "processed_audio.wav"
-        outputFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-            .getChildFile("processed_audio.wav");
+        juce::File outputFile(juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+            .getChildFile("processed_audio.wav"));
 
         if (outputFile.exists()) {
             outputFile.deleteFile();
@@ -100,6 +100,8 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
             DBG("Error: Could not create output file stream for: " + outputFile.getFullPathName());
         }
     }
+
+    juce::ignoreUnused(samplesPerBlockExpected);
 }
 
 void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill)
@@ -214,7 +216,7 @@ void MainComponent::paint (juce::Graphics& g)
 
     if (isRecording)
     {
-        statusText = "Recording microphone input to:\n" + outputFile.getFullPathName();
+        statusText = "Recording microphone input to processed_audio.wav";
         g.setColour(juce::Colours::red); // Indicate recording with red text
     }
     else if (audioWriter != nullptr)
@@ -230,7 +232,7 @@ void MainComponent::paint (juce::Graphics& g)
     }
     else if (!isRecording && onStopRecordClicked)
     {
-        statusText = "Stopped recording. File saved to:\n" + outputFile.getFullPathName();
+        statusText = "Stopped recording. File saved to Documents.";
     }
 
     // Adjust text bounds to make space for the button
